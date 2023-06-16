@@ -20,6 +20,10 @@ import { genFileId, UploadFile, UploadProps, UploadRawFile } from 'element-plus'
 import * as x from 'xlsx'
 import { ref } from 'vue'
 
+const emits = defineEmits([
+  'change'
+])
+
 const upload = ref()
 
 const handleExceed: UploadProps['onExceed'] = (files) => {
@@ -38,7 +42,8 @@ const handleChange = (uploadFile: UploadFile) => {
     const workbook = x.read(buffer, { type: 'array' })
     const sheetName = workbook.Sheets[workbook.SheetNames[0]]
     const json = x.utils.sheet_to_json(sheetName)
-    console.log('json', json)
+    // console.log('json', json)
+    emits('change', json)
   }
   reader.readAsArrayBuffer(file)
 }
