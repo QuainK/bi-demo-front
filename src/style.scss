@@ -1,0 +1,24 @@
+* {
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+}
+ol, ul, li {
+  list-style: none;
+}
+html, body {
+  width: 100vw;
+  height: 100vh;
+  font-size: 16px;
+}
+#app {
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+}
