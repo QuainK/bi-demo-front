@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import DialogImport from './dialogImport.vue'
 import DialogDeleteRedundant from '@/views/data-source/dialogDeleteRedundant.vue'
 import { deduplicateObjectArray } from '@/utils'
@@ -44,7 +44,11 @@ const onClickUpload = () => {
   dialogImportVisible.value = true
 }
 
-const data = ref<any[]>([])
+// 原始数据
+const originalData = reactive<any[]>([])
+// 加工数据
+const data = reactive<any[]>([])
+
 // 测试数据
 // const data = ref<any[]>([
 //   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
@@ -79,11 +83,16 @@ const filterRedundant = (val: string) => {
 
   // 单选去重
   console.log('去重字段', val)
-  data.value = deduplicateObjectArray(data.value, val)
+  if (!val) {
+    return
+  }
+  data.length = 0
+  data.push(...deduplicateObjectArray(originalData, val))
 }
 
 const handleDataChange = (val: any) => {
-  data.value = val
+  Object.assign(originalData, JSON.parse(JSON.stringify(val)))
+  Object.assign(data, JSON.parse(JSON.stringify(val)))
   columnPropList.value = [...Object.keys(val[0])]
 }
 

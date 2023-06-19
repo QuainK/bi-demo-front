@@ -7,7 +7,7 @@
   >
     选择字段：
     <el-select
-      v-model="selectedColumns"
+      v-model="selected"
       filterable
       clearable
     >
@@ -54,17 +54,17 @@ const dialogVisible = ref<boolean>(props.visible)
 const closeDialog = () => {
   dialogVisible.value = false
   emits('close')
-  selectedColumns.value = []
+  selected.value = ''
 }
 
-const selectedColumns = ref<string[]>([])
+const selected = ref<string>(props.columns[0])
 
 const handleCancel = () => {
   closeDialog()
 }
 
 const handleConfirm = () => {
-  emits('filter', selectedColumns.value)
+  emits('filter', selected.value ?? '')
   closeDialog()
 }
 
