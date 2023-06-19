@@ -151,6 +151,7 @@ const handleDataChange = (val: any) => {
   data.length = 0
   Object.assign(data, JSON.parse(JSON.stringify(val)))
   columnPropList.value = [...Object.keys(val[0])]
+  // columnPropList.value = [...Object.keys(val[0])].map(propName => propName.trim())
 
   local.set('dataBody', val)
   local.set('dataHeader', columnPropList.value)
