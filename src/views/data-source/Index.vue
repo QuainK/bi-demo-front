@@ -9,7 +9,8 @@
         <el-button type="primary" @click="onClickImport">导入数据</el-button>
 
         <!--表格有数据时才显示-->
-        <template v-if="originalData.length">
+        <template v-if="originalList.length">
+          <!--一些加工表格数据的菜单列表-->
           <el-menu
             mode="horizontal"
             :ellipsis="false"
@@ -120,20 +121,35 @@
         </div>
       </div>
 
-      <!--表格数据预览-->
-      <el-table
-        :data="data"
-        stripe
-        border
-        style="margin: 10px 0;"
-      >
-        <el-table-column
-          v-for="(columnProp,index) in columnPropList "
-          :key="index"
-          :prop="columnProp"
-          :label="columnProp"
+      <!--表格容器-->
+      <div class="table">
+        <!--表格组件-->
+        <el-table
+          :data="currentPageList"
+          stripe
+          border
+          style="margin: 10px 0;"
+        >
+          <el-table-column
+            v-for="(columnProp,index) in columnPropList "
+            :key="index"
+            :prop="columnProp"
+            :label="columnProp"
+          />
+        </el-table>
+        <!--分页条组件-->
+        <el-pagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :page-sizes="pageSizeList"
+          :total="tableSize"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          class="pagination"
+          @current-change="changePageNum"
+          @size-change="changePageSize"
         />
-      </el-table>
+      </div>
     </div>
   </div>
 
@@ -148,7 +164,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import DialogImport from './dialogImport.vue'
-import { deduplicateObjectArray } from '@/utils'
+import { deduplicateObjectArray, updateCurrentPageList } from '@/utils'
 import { local } from '@/utils/storage'
 
 // ---------- 导入 开始 ----------
@@ -171,54 +187,74 @@ const closeDialogImport = () => {
 
 // ---------- 导入 结束 ----------
 
-// ---------- 表格 开始 ----------
+// ---------- 表格 数据 开始 ----------
 
-// 原始数据
-const originalData = reactive<any[]>([])
-// 加工数据
-const data = reactive<any[]>([])
+// 原始数据列表
+const originalList = reactive<any[]>([])
+// 加工数据列表
+const modifiedList = reactive<any[]>([])
+// 当前页列表
+const currentPageList = reactive<any[]>([])
 // 字段列表（表头名）
 const columnPropList = ref<string[]>([])
-
-/**
- * 从本地缓存读取表格数据
- */
-const updateTableFromLocal = () => {
-  // 组件创建后，先读取浏览器本地缓存
-  const header = local.get('dataHeader') ?? []
-  const body = local.get('dataBody') ?? []
-  // 更新原始表格数据
-  originalData.length = 0
-  Object.assign(originalData, JSON.parse(JSON.stringify(body)))
-  // 更新加工表格数据
-  data.length = 0
-  Object.assign(data, JSON.parse(JSON.stringify(body)))
-  // 更新表头数据
-  columnPropList.value = header
-}
-// 组件创建后会立马执行
-updateTableFromLocal()
-
 /**
  * 导入弹窗更新表格数据
- * @param val
  */
 const handleDataChange = (val: any) => {
   // 更新原始表格数据
-  originalData.length = 0
-  Object.assign(originalData, JSON.parse(JSON.stringify(val)))
+  originalList.length = 0
+  Object.assign(originalList, JSON.parse(JSON.stringify(val)))
   // 更新加工表格数据
-  data.length = 0
-  Object.assign(data, JSON.parse(JSON.stringify(val)))
+  modifiedList.length = 0
+  Object.assign(modifiedList, JSON.parse(JSON.stringify(val)))
   // 更新表头数据
   columnPropList.value = [...Object.keys(val[0])]
 
   // 保存到本地缓存
   local.set('dataBody', val)
   local.set('dataHeader', columnPropList.value)
+
+  // 更新分页列表
+  pageNum.value = 1
+  updateCurrentPage()
 }
 
-// ---------- 表格 结束 ----------
+// ---------- 表格 数据 结束 ----------
+
+// ---------- 表格 分页 开始 ----------
+
+// 当前页码，从1开始
+const pageNum = ref<number>(1)
+// 每页大小
+const pageSize = ref<number>(50)
+// 每页大小的可选数值
+const pageSizeList: number[] = [10, 20, 50, 100, 200]
+// 列表总长度
+const tableSize = ref<number>(0)
+/**
+ * 更新当前页列表
+ */
+const updateCurrentPage = () => {
+  const val = updateCurrentPageList(modifiedList, pageNum.value, pageSize.value)
+  currentPageList.length = 0
+  Object.assign(currentPageList, JSON.parse(JSON.stringify(val)))
+  tableSize.value = modifiedList.length
+}
+/**
+ * 修改当前页码
+ */
+const changePageNum = () => {
+  // 更新当前页码的列表数据
+  updateCurrentPage()
+}
+/**
+ * 修改页面大小
+ */
+const changePageSize = () => {
+  // 更新当前页码的列表数据
+  updateCurrentPage()
+}
+// ---------- 表格 分页 结束 ----------
 
 // ---------- 去重 开始 ----------
 
@@ -227,12 +263,11 @@ const deduplicateColumn = ref('')
 // 去重
 const executeDeduplicate = () => {
   // 单选去重
-  console.log('去重字段', deduplicateColumn.value)
-  data.length = 0
+  modifiedList.length = 0
   if (!deduplicateColumn.value) {
-    Object.assign(data, JSON.parse(JSON.stringify(originalData)))
+    Object.assign(modifiedList, JSON.parse(JSON.stringify(originalList)))
   } else {
-    data.push(...deduplicateObjectArray(originalData, deduplicateColumn.value))
+    modifiedList.push(...deduplicateObjectArray(originalList, deduplicateColumn.value))
   }
 }
 
@@ -254,15 +289,15 @@ const sortMethodList = reactive({
  */
 const executeSort = () => {
   // 按升降序排序
-  const temp = data.sort((a, b) => {
+  const temp = modifiedList.sort((a, b) => {
     return sortMethod.value === 'ascending'
       ? a[sortColumn.value] - b[sortColumn.value]
       : b[sortColumn.value] - a[sortColumn.value]
   })
   const arr = JSON.parse(JSON.stringify(temp))
   // 更新表格数据
-  data.length = 0
-  Object.assign(data, arr)
+  modifiedList.length = 0
+  Object.assign(modifiedList, arr)
 }
 
 // ---------- 排序 结束 ----------
@@ -290,7 +325,7 @@ const operatorList = ref({
  */
 const executeFilter = () => {
   // 表格数据的筛选后结果
-  let list = JSON.parse(JSON.stringify(originalData))
+  let list = JSON.parse(JSON.stringify(originalList))
 
   // 遍历筛选条件列表
   filterList.value.forEach((condition) => {
@@ -319,8 +354,8 @@ const executeFilter = () => {
   })
 
   // 更新表格
-  data.length = 0
-  Object.assign(data, JSON.parse(JSON.stringify(list)))
+  modifiedList.length = 0
+  Object.assign(modifiedList, JSON.parse(JSON.stringify(list)))
 }
 
 // ---------- 筛选 结束 ----------
@@ -367,6 +402,28 @@ const onClickToolConfirm = () => {
 }
 
 // ---------- 菜单 通用 结束 ----------
+
+// ---------- 组件创建后立马执行 ----------
+
+/**
+ * 从本地缓存读取表格数据
+ */
+const updateTableFromLocal = () => {
+  // 组件创建后，先读取浏览器本地缓存
+  const header = local.get('dataHeader') ?? []
+  const body = local.get('dataBody') ?? []
+  // 更新原始表格数据
+  originalList.length = 0
+  Object.assign(originalList, JSON.parse(JSON.stringify(body)))
+  // 更新加工表格数据
+  modifiedList.length = 0
+  Object.assign(modifiedList, JSON.parse(JSON.stringify(body)))
+  // 更新表头数据
+  columnPropList.value = header
+}
+updateTableFromLocal()
+pageNum.value = 1
+updateCurrentPage()
 </script>
 
 <style scoped lang="scss">
@@ -411,5 +468,9 @@ const onClickToolConfirm = () => {
   .form-item-label {
     margin-right: 1em;
   }
+}
+// 分页条
+.pagination {
+  justify-content: flex-end;
 }
 </style>
