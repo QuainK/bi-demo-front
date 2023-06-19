@@ -1,19 +1,16 @@
 <template>
   <div class="container">
-    <DataImport @change="handleDataChange" />
-    <DataShow :table="tableData" />
+    <el-button @click="onButtonClick('/')">home</el-button>
+    <el-button @click="onButtonClick('/data-source')">data-source</el-button>
+    <router-view />
   </div>
 </template>
 
 <script setup lang="ts">
-import DataImport from '@/views/data-import.vue'
-import DataShow from '@/views/data-show.vue'
-import { ref } from 'vue'
+import router from '@/router'
 
-const tableData = ref()
-
-const handleDataChange = (val: any) => {
-  tableData.value = val
+const onButtonClick = (path: string = '/') => {
+  router.push(path)
 }
 </script>
 
