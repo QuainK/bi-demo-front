@@ -1,21 +1,22 @@
 <template>
   <el-dialog
     v-model="dialogVisible"
-    :close-on-click-modal="false"
+    title="导入数据"
+    center
     @close="closeDialog"
   >
-    <div class="upload">
-      <el-upload
-        ref="upload"
-        action="#"
-        drag
-        :limit="1"
-        :auto-upload="false"
-        :on-change="handleChange"
-        :on-exceed="handleExceed"
-      >上传文件
-      </el-upload>
-    </div>
+    <el-upload
+      ref="upload"
+      action="#"
+      drag
+      :limit="1"
+      :auto-upload="false"
+      :show-file-list="false"
+      :on-change="handleChange"
+      :on-exceed="handleExceed"
+    >
+      上传文件，支持xlsx, xls
+    </el-upload>
   </el-dialog>
 </template>
 
@@ -80,13 +81,10 @@ watch(
   () => props.visible,
   (val) => {
     dialogVisible.value = val
-    console.log('props.visible', props.visible, dialogVisible.value)
+    // console.log('props.visible', props.visible, dialogVisible.value)
   },
 )
 </script>
 
 <style scoped lang="scss">
-.upload {
-  width: 300px;
-}
 </style>

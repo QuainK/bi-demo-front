@@ -1,7 +1,10 @@
 <template>
   <div class="container">
-    <el-button @click="onButtonClick('/')">home</el-button>
-    <el-button @click="onButtonClick('/data-source')">data-source</el-button>
+    <div style="margin-bottom: 10px">
+      <el-button @click="onButtonClick('/')">home</el-button>
+      <el-button @click="onButtonClick('/data-source')">data-source</el-button>
+    </div>
+
     <router-view />
   </div>
 </template>
@@ -16,6 +19,8 @@ const onButtonClick = (path: string = '/') => {
 
 <style scoped lang="scss">
 .container {
-  padding: 50px;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
 }
 </style>
