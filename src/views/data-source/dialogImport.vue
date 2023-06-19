@@ -78,7 +78,6 @@ const handleChange = (uploadFile: UploadFile) => {
     const sheetName = workbook.Sheets[workbook.SheetNames[0]]
     // 将该表格转换成JSON格式
     const json = x.utils.sheet_to_json(sheetName)
-    console.log('json', json)
     // 通知父组件，导入完成
     emits('change', json)
     // 读完了，关闭弹窗

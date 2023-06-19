@@ -162,15 +162,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { reactive, ref } from 'vue'
 import DialogImport from './dialogImport.vue'
 import { deduplicateObjectArray, updateCurrentPageList } from '@/utils'
-import { local } from '@/utils/storage'
-import { useCounterStore } from '@/store/count'
+import { useDataSourceStore } from '@/store/date-resource'
 import { storeToRefs } from 'pinia'
-
-const store = useCounterStore()
-const { count } = storeToRefs(store)
 
 // ---------- 导入 开始 ----------
 
@@ -194,12 +190,12 @@ const closeDialogImport = () => {
 
 // ---------- 表格 数据 开始 ----------
 
+const store = useDataSourceStore()
 // 原始数据列表
-const originalList = reactive<any[]>([])
 // 加工数据列表
-const modifiedList = reactive<any[]>([])
+const { originalList, modifiedList } = storeToRefs(store)
 // 当前页列表
-const currentPageList = reactive<any[]>([])
+const currentPageList = ref([])
 // 字段列表（表头名）
 const columnPropList = ref<string[]>([])
 /**
@@ -207,17 +203,11 @@ const columnPropList = ref<string[]>([])
  */
 const handleDataChange = (val: any) => {
   // 更新原始表格数据
-  originalList.length = 0
-  Object.assign(originalList, JSON.parse(JSON.stringify(val)))
+  originalList.value = JSON.parse(JSON.stringify(val))
   // 更新加工表格数据
-  modifiedList.length = 0
-  Object.assign(modifiedList, JSON.parse(JSON.stringify(val)))
+  modifiedList.value = JSON.parse(JSON.stringify(val))
   // 更新表头数据
   columnPropList.value = [...Object.keys(val[0])]
-
-  // 保存到本地缓存
-  local.set('dataBody', val)
-  local.set('dataHeader', columnPropList.value)
 
   // 更新分页列表
   pageNum.value = 1
@@ -240,10 +230,10 @@ const tableSize = ref<number>(0)
  * 更新当前页列表
  */
 const updateCurrentPage = () => {
-  const val = updateCurrentPageList(modifiedList, pageNum.value, pageSize.value)
-  currentPageList.length = 0
-  Object.assign(currentPageList, JSON.parse(JSON.stringify(val)))
-  tableSize.value = modifiedList.length
+  const val = updateCurrentPageList(modifiedList.value, pageNum.value, pageSize.value)
+  tableSize.value = modifiedList.value.length
+  currentPageList.value = JSON.parse(JSON.stringify(val))
+  console.log('modifiedList.value', JSON.parse(JSON.stringify(modifiedList.value)), 'currentPageList.value', JSON.parse(JSON.stringify(currentPageList.value)))
 }
 /**
  * 修改当前页码
@@ -268,11 +258,10 @@ const deduplicateColumn = ref('')
 // 去重
 const executeDeduplicate = () => {
   // 单选去重
-  modifiedList.length = 0
   if (!deduplicateColumn.value) {
-    Object.assign(modifiedList, JSON.parse(JSON.stringify(originalList)))
+    modifiedList.value = JSON.parse(JSON.stringify(originalList.value))
   } else {
-    modifiedList.push(...deduplicateObjectArray(originalList, deduplicateColumn.value))
+    modifiedList.value = [...deduplicateObjectArray(originalList.value, deduplicateColumn.value)]
   }
 }
 
@@ -294,15 +283,13 @@ const sortMethodList = reactive({
  */
 const executeSort = () => {
   // 按升降序排序
-  const temp = modifiedList.sort((a, b) => {
+  const arr = modifiedList.value.sort((a, b) => {
     return sortMethod.value === 'ascending'
       ? a[sortColumn.value] - b[sortColumn.value]
       : b[sortColumn.value] - a[sortColumn.value]
   })
-  const arr = JSON.parse(JSON.stringify(temp))
   // 更新表格数据
-  modifiedList.length = 0
-  Object.assign(modifiedList, arr)
+  modifiedList.value = JSON.parse(JSON.stringify(arr))
 }
 
 // ---------- 排序 结束 ----------
@@ -330,7 +317,7 @@ const operatorList = ref({
  */
 const executeFilter = () => {
   // 表格数据的筛选后结果
-  let list = JSON.parse(JSON.stringify(originalList))
+  let list = JSON.parse(JSON.stringify(originalList.value))
 
   // 遍历筛选条件列表
   filterList.value.forEach((condition) => {
@@ -359,8 +346,7 @@ const executeFilter = () => {
   })
 
   // 更新表格
-  modifiedList.length = 0
-  Object.assign(modifiedList, JSON.parse(JSON.stringify(list)))
+  modifiedList.value = JSON.parse(JSON.stringify(list))
 }
 
 // ---------- 筛选 结束 ----------
@@ -369,13 +355,6 @@ const executeFilter = () => {
 
 // 当前激活的菜单
 const menuActiveIndex = ref('null')
-watch(
-  menuActiveIndex,
-  (val) => {
-    count.value++
-    console.log('menuActiveIndex', val, count.value)
-  }
-)
 // 菜单项目
 const menuList = reactive({
   deduplicate: { name: 'deduplicate', text: '去重', handler: executeDeduplicate },
@@ -411,31 +390,18 @@ const onClickToolConfirm = () => {
   if (handler) {
     handler()
   }
+  // 更新列表
+  updateCurrentPage()
 }
 
 // ---------- 菜单 通用 结束 ----------
 
-// ---------- 组件创建后立马执行 ----------
-
-/**
- * 从本地缓存读取表格数据
- */
-const updateTableFromLocal = () => {
-  // 组件创建后，先读取浏览器本地缓存
-  const header = local.get('dataHeader') ?? []
-  const body = local.get('dataBody') ?? []
-  // 更新原始表格数据
-  originalList.length = 0
-  Object.assign(originalList, JSON.parse(JSON.stringify(body)))
-  // 更新加工表格数据
-  modifiedList.length = 0
-  Object.assign(modifiedList, JSON.parse(JSON.stringify(body)))
-  // 更新表头数据
-  columnPropList.value = header
-}
-updateTableFromLocal()
-pageNum.value = 1
+// 组件创建后，更新当前页码列表
 updateCurrentPage()
+// 更新表头数据
+if (currentPageList.value.length) {
+  columnPropList.value = [...Object.keys(currentPageList.value[0])]
+}
 </script>
 
 <style scoped lang="scss">
