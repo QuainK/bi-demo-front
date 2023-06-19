@@ -162,10 +162,15 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import DialogImport from './dialogImport.vue'
 import { deduplicateObjectArray, updateCurrentPageList } from '@/utils'
 import { local } from '@/utils/storage'
+import { useCounterStore } from '@/store/count'
+import { storeToRefs } from 'pinia'
+
+const store = useCounterStore()
+const { count } = storeToRefs(store)
 
 // ---------- 导入 开始 ----------
 
@@ -364,6 +369,13 @@ const executeFilter = () => {
 
 // 当前激活的菜单
 const menuActiveIndex = ref('null')
+watch(
+  menuActiveIndex,
+  (val) => {
+    count.value++
+    console.log('menuActiveIndex', val, count.value)
+  }
+)
 // 菜单项目
 const menuList = reactive({
   deduplicate: { name: 'deduplicate', text: '去重', handler: executeDeduplicate },
