@@ -1,61 +1,85 @@
 <template>
-  <div>
-    <el-button type="primary" @click="onClickUpload">导入数据</el-button>
-    <template v-if="originalData.length">
-      <el-button @click="onClickDeleteRedundant">删除重复行</el-button>
-      <el-button @click="onClickSort">排序</el-button>
-    </template>
+  <!--模块容器-->
+  <div class="module">
+    <!--主体-->
+    <div class="module-main">
+      <!--菜单栏-->
+      <div class="data-menu">
+        <!--导入-->
+        <el-button type="primary" @click="onClickUpload">导入数据</el-button>
+
+        <!--表格有数据时才显示-->
+        <template v-if="originalData.length">
+          <el-button @click="onClickDeleteRedundant">删除重复行</el-button>
+          <el-button @click="onClickSort">排序</el-button>
+        </template>
+      </div>
+
+      <!--菜单详情-->
+      <div v-show="toolBoxVisible" class="data-menu-detail">
+        <!--取消确定按钮-->
+        <div class="data-menu-detail-button">
+          <el-button type="info" @click="onClickToolCancel">取消</el-button>
+          <el-button type="primary" @click="onClickToolConfirm">确定</el-button>
+        </div>
+
+        <!--表单-->
+        <div class="data-menu-detail-form">
+          <template v-if="toolVisible.sort">
+            <el-form inline>
+              <el-form-item>
+                <span class="form-item-label">选择字段：</span>
+                <el-select v-model="sortColumn">
+                  <el-option
+                    v-for="column in columnPropList"
+                    :key="column"
+                    :value="column"
+                    :label="column"
+                  />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item>
+                <span class="form-item-label">排序方式</span>
+                <el-select v-model="sortMethod">
+                  <el-option
+                    v-for="option in Object.values(sortMethodList)"
+                    :key="option.value"
+                    :value="option.value"
+                    :label="option.text"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </template>
+        </div>
+      </div>
+
+      <!--表格数据预览-->
+      <el-table
+        :data="data"
+        stripe
+        border
+        style="margin: 10px 0;"
+      >
+        <el-table-column
+          v-for="(columnProp,index) in columnPropList "
+          :key="index"
+          :prop="columnProp"
+          :label="columnProp"
+        />
+      </el-table>
+    </div>
   </div>
 
-  <div v-show="toolBoxVisible" style="margin: 10px 0">
-    <div>
-      <el-button type="info" @click="onClickToolCancel">取消</el-button>
-      <el-button type="primary" @click="onClickToolConfirm">确定</el-button>
-    </div>
-    <div style="margin: 10px 0">
-      <template v-if="toolVisible.sort">
-        <span style="margin: 0 1em">选择字段：</span>
-        <el-select v-model="sortColumn">
-          <el-option
-            v-for="column in columnPropList"
-            :key="column"
-            :value="column"
-            :label="column"
-          />
-        </el-select>
-        <span style="margin: 0 1em">排序方式</span>
-        <el-select v-model="sortMethod">
-          <el-option
-            v-for="option in Object.values(sortMethodList)"
-            :key="option.value"
-            :value="option.value"
-            :label="option.text"
-          />
-        </el-select>
-      </template>
-    </div>
-  </div>
-
-  <el-table
-    :data="data"
-    stripe
-    border
-    style="margin: 10px 0;"
-  >
-    <el-table-column
-      v-for="(columnProp,index) in columnPropList "
-      :key="index"
-      :prop="columnProp"
-      :label="columnProp"
-    />
-  </el-table>
-
+  <!--导入弹窗-->
   <DialogImport
     :visible="dialogImportVisible"
     @change="handleDataChange"
     @close="closeDialogImport"
   />
 
+  <!--删除重复行弹窗-->
   <DialogDeleteRedundant
     :visible="dialogDeleteRedundantVisible"
     :columns="columnPropList"
@@ -69,6 +93,7 @@ import { reactive, ref } from 'vue'
 import DialogImport from './dialogImport.vue'
 import DialogDeleteRedundant from '@/views/data-source/dialogDeleteRedundant.vue'
 import { deduplicateObjectArray } from '@/utils'
+import { local } from '@/utils/storage'
 
 const onClickUpload = () => {
   dialogImportVisible.value = true
@@ -78,7 +103,6 @@ const onClickUpload = () => {
 const originalData = reactive<any[]>([])
 // 加工数据
 const data = reactive<any[]>([])
-
 // 测试数据
 // const data = ref<any[]>([
 //   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
@@ -127,7 +151,19 @@ const handleDataChange = (val: any) => {
   data.length = 0
   Object.assign(data, JSON.parse(JSON.stringify(val)))
   columnPropList.value = [...Object.keys(val[0])]
+
+  local.set('dataBody', val)
+  local.set('dataHeader', columnPropList.value)
 }
+
+const header = local.get('dataHeader') ?? []
+const body = local.get('dataBody') ?? []
+
+originalData.length = 0
+Object.assign(originalData, JSON.parse(JSON.stringify(body)))
+data.length = 0
+Object.assign(data, JSON.parse(JSON.stringify(body)))
+columnPropList.value = header
 
 const toolBoxVisible = ref(false)
 const toolVisible = reactive<{ [prop: string]: boolean }>({
@@ -180,4 +216,40 @@ const sortMethodList = reactive({
 </script>
 
 <style scoped lang="scss">
+// 模块容器
+.module {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  width: 100%;
+  height: auto;
+}
+// 主体
+.module-main {
+  flex: auto;
+  width: auto;
+  min-width: 300px;
+  height: 100%;
+}
+// 菜单栏
+.data-menu {
+  display: flex;
+  width: 100%;
+}
+// 菜单详情
+.data-menu-detail {
+  margin: 10px 0;
+}
+// 取消确定按钮
+.data-menu-detail-button {
+  display: flex;
+}
+// 表单
+.data-menu-detail-form {
+  margin: 10px 0;
+  .form-item-label {
+    margin: 0 1em;
+  }
+}
 </style>
