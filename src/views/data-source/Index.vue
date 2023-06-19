@@ -6,31 +6,60 @@
       <!--菜单栏-->
       <div class="data-menu">
         <!--导入-->
-        <el-button type="primary" @click="onClickUpload">导入数据</el-button>
+        <el-button type="primary" @click="onClickImport">导入数据</el-button>
 
         <!--表格有数据时才显示-->
         <template v-if="originalData.length">
-          <el-button @click="onClickDeleteRedundant">删除重复行</el-button>
-          <el-button @click="onClickSort">排序</el-button>
-          <el-button @click="onClickFilter">筛选</el-button>
+          <el-menu
+            mode="horizontal"
+            :ellipsis="false"
+            unique-opened
+            :default-active="menuActiveIndex"
+            class="menu-list"
+          >
+            <el-menu-item
+              v-for="menuItem in menuList"
+              :index="menuItem.name"
+              @click="onClickMenuItem"
+            >
+              {{ menuItem.text }}
+            </el-menu-item>
+          </el-menu>
         </template>
       </div>
 
-      <!--菜单详情-->
-      <div v-show="toolBoxVisible" class="data-menu-detail">
+      <!--菜单内容-->
+      <div v-show="menuActiveIndex !== 'null'" class="data-menu-detail">
         <!--取消确定按钮-->
-        <div class="data-menu-detail-button">
+        <div v-show="menuActiveIndex !== 'null'" class="data-menu-detail-button">
           <el-button type="info" @click="onClickToolCancel">取消</el-button>
           <el-button type="primary" @click="onClickToolConfirm">确定</el-button>
         </div>
 
         <!--表单-->
         <div class="data-menu-detail-form">
-          <!--排序-->
-          <div v-show="toolVisible.sort">
+          <!--去重-->
+          <div v-show="menuActiveIndex === menuList.deduplicate.name">
             <el-form inline>
               <el-form-item>
-                <span class="form-item-label">选择字段：</span>
+                <span class="form-item-label">字段</span>
+                <el-select v-model="deduplicateColumn" clearable>
+                  <el-option
+                    v-for="column in columnPropList"
+                    :key="column"
+                    :value="column"
+                    :label="column"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </div>
+
+          <!--排序-->
+          <div v-show="menuActiveIndex === menuList.sort.name">
+            <el-form inline>
+              <el-form-item>
+                <span class="form-item-label">字段</span>
                 <el-select v-model="sortColumn">
                   <el-option
                     v-for="column in columnPropList"
@@ -56,7 +85,7 @@
           </div>
 
           <!--筛选-->
-          <div v-show="toolVisible.filter">
+          <div v-show="menuActiveIndex === menuList.filter.name">
             <el-form
               v-for="(filter, index) in filterList"
               :key="index"
@@ -84,7 +113,7 @@
                 </el-select>
               </el-form-item>
               <el-form-item :label="index === 0 ? '值' : ''">
-                <el-input v-model.trim="filter.content" placeholder="请输入值" />
+                <el-input v-model.trim="filter.content" placeholder="请输入值" clearable style="width: 300px" />
               </el-form-item>
             </el-form>
           </div>
@@ -114,112 +143,152 @@
     @change="handleDataChange"
     @close="closeDialogImport"
   />
-
-  <!--删除重复行弹窗-->
-  <DialogDeleteRedundant
-    :visible="dialogDeleteRedundantVisible"
-    :columns="columnPropList"
-    @filter="filterRedundant"
-    @close="closeDialogDeleteRedundant"
-  />
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import DialogImport from './dialogImport.vue'
-import DialogDeleteRedundant from '@/views/data-source/dialogDeleteRedundant.vue'
 import { deduplicateObjectArray } from '@/utils'
 import { local } from '@/utils/storage'
 
-const onClickUpload = () => {
+// ---------- 导入 开始 ----------
+
+// 显示导入弹窗
+const dialogImportVisible = ref(false)
+/**
+ * 点击导入按钮
+ */
+const onClickImport = () => {
+  // 显示导入弹窗
   dialogImportVisible.value = true
 }
+/**
+ * 关闭导入弹窗
+ */
+const closeDialogImport = () => {
+  dialogImportVisible.value = false
+}
+
+// ---------- 导入 结束 ----------
+
+// ---------- 表格 开始 ----------
 
 // 原始数据
 const originalData = reactive<any[]>([])
 // 加工数据
 const data = reactive<any[]>([])
-// 测试数据
-// const data = ref<any[]>([
-//   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
-//   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
-//   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
-//   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
-//   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
-//   { a: 1, b: 2, c: 3, '中文表头': '哈哈哈' },
-// ])
-
+// 字段列表（表头名）
 const columnPropList = ref<string[]>([])
 
-const dialogImportVisible = ref(false)
-const closeDialogImport = () => {
-  dialogImportVisible.value = false
+/**
+ * 从本地缓存读取表格数据
+ */
+const updateTableFromLocal = () => {
+  // 组件创建后，先读取浏览器本地缓存
+  const header = local.get('dataHeader') ?? []
+  const body = local.get('dataBody') ?? []
+  // 更新原始表格数据
+  originalData.length = 0
+  Object.assign(originalData, JSON.parse(JSON.stringify(body)))
+  // 更新加工表格数据
+  data.length = 0
+  Object.assign(data, JSON.parse(JSON.stringify(body)))
+  // 更新表头数据
+  columnPropList.value = header
 }
-
-const dialogDeleteRedundantVisible = ref(false)
-const closeDialogDeleteRedundant = () => {
-  dialogDeleteRedundantVisible.value = false
-}
+// 组件创建后会立马执行
+updateTableFromLocal()
 
 /**
- * 删除重复行
+ * 导入弹窗更新表格数据
+ * @param val
  */
-const onClickDeleteRedundant = () => {
-  dialogDeleteRedundantVisible.value = true
-}
-
-const filterRedundant = (val: string) => {
-  // TODO 多选去重
-
-  // 单选去重
-  console.log('去重字段', val)
-  data.length = 0
-  if (!val) {
-    Object.assign(data, JSON.parse(JSON.stringify(originalData)))
-  } else {
-    data.push(...deduplicateObjectArray(originalData, val))
-  }
-}
-
 const handleDataChange = (val: any) => {
+  // 更新原始表格数据
   originalData.length = 0
   Object.assign(originalData, JSON.parse(JSON.stringify(val)))
+  // 更新加工表格数据
   data.length = 0
   Object.assign(data, JSON.parse(JSON.stringify(val)))
+  // 更新表头数据
   columnPropList.value = [...Object.keys(val[0])]
-  // columnPropList.value = [...Object.keys(val[0])].map(propName => propName.trim())
 
+  // 保存到本地缓存
   local.set('dataBody', val)
   local.set('dataHeader', columnPropList.value)
 }
 
-// ---------- 筛选 开始 ----------
+// ---------- 表格 结束 ----------
 
-// 点击筛选按钮
-const onClickFilter = () => {
-  closeAllTool()
-  toolBoxVisible.value = true
-  toolVisible.filter = true
+// ---------- 去重 开始 ----------
+
+// 去重字段
+const deduplicateColumn = ref('')
+// 去重
+const executeDeduplicate = () => {
+  // 单选去重
+  console.log('去重字段', deduplicateColumn.value)
+  data.length = 0
+  if (!deduplicateColumn.value) {
+    Object.assign(data, JSON.parse(JSON.stringify(originalData)))
+  } else {
+    data.push(...deduplicateObjectArray(originalData, deduplicateColumn.value))
+  }
 }
+
+// ---------- 去重 结束 ----------
+
+// ---------- 排序 开始 ----------
+
+// 排序字段
+const sortColumn = ref('')
+// 排序方式
+const sortMethod = ref('ascending')
+// 排序方式常量表
+const sortMethodList = reactive({
+  ascending: { text: '升序', value: 'ascending' },
+  descending: { text: '降序', value: 'descending' },
+})
+/**
+ * 排序
+ */
+const executeSort = () => {
+  // 按升降序排序
+  const temp = data.sort((a, b) => {
+    return sortMethod.value === 'ascending'
+      ? a[sortColumn.value] - b[sortColumn.value]
+      : b[sortColumn.value] - a[sortColumn.value]
+  })
+  const arr = JSON.parse(JSON.stringify(temp))
+  // 更新表格数据
+  data.length = 0
+  Object.assign(data, arr)
+}
+
+// ---------- 排序 结束 ----------
+
+// ---------- 筛选 开始 ----------
 
 // 过滤条件列表
 const filterList = ref([{
   // 字段名
-  column: 'ID',
+  column: columnPropList.value[0],
   // 运算符
   operator: 'include',
   // 值，为什么不用value，防止和ref的.value混淆
-  content: '71',
+  content: '',
 }])
-// 运算符常量列表
+// 运算符常量表
 const operatorList = ref({
   include: { name: 'include', text: '包含' },
   exclude: { name: 'exclude', text: '不包含' },
   prefix: { name: 'prefix', text: '开头是' },
   suffix: { name: 'suffix', text: '结尾是' },
 })
-// 点击确定按钮
-const onClickFilterConfirm = () => {
+/**
+ * 过滤
+ */
+const executeFilter = () => {
   // 表格数据的筛选后结果
   let list = JSON.parse(JSON.stringify(originalData))
 
@@ -256,66 +325,48 @@ const onClickFilterConfirm = () => {
 
 // ---------- 筛选 结束 ----------
 
-const header = local.get('dataHeader') ?? []
-const body = local.get('dataBody') ?? []
+// ---------- 菜单 通用 开始 ----------
 
-originalData.length = 0
-Object.assign(originalData, JSON.parse(JSON.stringify(body)))
-data.length = 0
-Object.assign(data, JSON.parse(JSON.stringify(body)))
-columnPropList.value = header
-
-const toolBoxVisible = ref(false)
-const toolVisible = reactive<{ [prop: string]: boolean }>({
-  deleteRedundant: false,
-  sort: false,
-  filter: false,
+// 当前激活的菜单
+const menuActiveIndex = ref('null')
+// 菜单项目
+const menuList = reactive({
+  deduplicate: { name: 'deduplicate', text: '去重', handler: executeDeduplicate },
+  sort: { name: 'sort', text: '排序', handler: executeSort },
+  filter: { name: 'filter', text: '筛选', handler: executeFilter },
 })
-const closeAllTool = () => {
-  Object.keys(toolVisible).forEach((key) => {
-    toolVisible[key] = false
-  })
+/**
+ * 点击菜单项目
+ */
+const onClickMenuItem = (item: { index: string }) => {
+  closeAllMenu()
+  menuActiveIndex.value = item.index ?? 'null'
 }
+/**
+ * 关闭所有菜单
+ */
+const closeAllMenu = () => {
+  menuActiveIndex.value = 'null'
+}
+/**
+ * 点击菜单栏的取消按钮
+ */
 const onClickToolCancel = () => {
-  toolBoxVisible.value = false
-  closeAllTool()
+  // 关闭菜单栏和菜单内容
+  closeAllMenu()
 }
+/**
+ * 点击菜单栏的确定按钮
+ */
 const onClickToolConfirm = () => {
-  if (!toolBoxVisible.value) {
-    return
-  }
-  if (toolVisible.sort) {
-    const temp = data.sort((a, b) => {
-      return sortMethod.value === 'ascending'
-        ? a[sortColumn.value] - b[sortColumn.value]
-        : b[sortColumn.value] - a[sortColumn.value]
-    })
-    const arr = JSON.parse(JSON.stringify(temp))
-    data.length = 0
-    Object.assign(data, arr)
-  } else if (toolVisible.filter) {
-    onClickFilterConfirm()
+  // 按激活的菜单，调用对应功能函数
+  const handler = menuList[<keyof typeof menuList>menuActiveIndex.value]?.handler
+  if (handler) {
+    handler()
   }
 }
 
-const onClickSort = () => {
-  closeAllTool()
-  toolBoxVisible.value = true
-  toolVisible.sort = true
-}
-const sortColumn = ref('')
-const sortMethod = ref('ascending')
-const sortMethodList = reactive({
-  ascending: { text: '升序', value: 'ascending' },
-  descending: { text: '降序', value: 'descending' },
-})
-
-// watch(
-//   dialogImportVisible,
-//   (val) => {
-//     console.log('dialogImportVisible', val)
-//   }
-// )
+// ---------- 菜单 通用 结束 ----------
 </script>
 
 <style scoped lang="scss">
@@ -338,9 +389,15 @@ const sortMethodList = reactive({
 // 菜单栏
 .data-menu {
   display: flex;
+  align-items: center;
   width: 100%;
 }
-// 菜单详情
+// 菜单列表
+.menu-list {
+  height: 50px;
+  margin: 0 20px;
+}
+// 菜单内容
 .data-menu-detail {
   margin: 10px 0;
 }
@@ -352,7 +409,7 @@ const sortMethodList = reactive({
 .data-menu-detail-form {
   margin: 10px 0;
   .form-item-label {
-    margin: 0 1em;
+    margin-right: 1em;
   }
 }
 </style>

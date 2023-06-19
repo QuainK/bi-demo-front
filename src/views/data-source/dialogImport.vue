@@ -1,10 +1,12 @@
 <template>
+  <!--弹窗容器-->
   <el-dialog
     v-model="dialogVisible"
     title="导入数据"
     center
     @close="closeDialog"
   >
+    <!--上传框-->
     <el-upload
       ref="upload"
       action="#"
@@ -38,15 +40,20 @@ const emits = defineEmits([
 // props.visible由父组件维护，子组件不能直接修改，dialogVisible由子组件维护
 const dialogVisible = ref<boolean>(props.visible)
 
+// 上传框DOM
 const upload = ref()
 
 /**
  * 覆盖文件
+ * 比如重复上传
  */
 const handleExceed: UploadProps['onExceed'] = (files) => {
+  // 清空待上传列表
   upload.value!.clearFiles()
+  // 将本次选择的第一个文件拿出来
   const file = files[0] as UploadRawFile
   file.uid = genFileId()
+  // 放进待上传列表
   upload.value!.handleStart(file)
 }
 
@@ -55,25 +62,42 @@ const handleExceed: UploadProps['onExceed'] = (files) => {
  * 比如首次上传、重新上传等
  */
 const handleChange = (uploadFile: UploadFile) => {
+  // File对象
   const file = uploadFile.raw as Blob
 
+  // 初始化JS输入流
   const reader = new FileReader()
+  // 输入流被加载的事件钩子函数
+  // 里面的内容只是事先定义好，现在还没执行呢
   reader.onload = (e) => {
+    // 输入流缓冲
     const buffer = e.target!.result
+    // 读取xlsx文件
     const workbook = x.read(buffer, { type: 'array' })
+    // 获取表格文件名
     const sheetName = workbook.Sheets[workbook.SheetNames[0]]
+    // 将该表格转换成JSON格式
     const json = x.utils.sheet_to_json(sheetName)
     console.log('json', json)
+    // 通知父组件，导入完成
     emits('change', json)
+    // 读完了，关闭弹窗
+    closeDialog()
   }
-  reader.readAsArrayBuffer(file)
 
-  closeDialog()
+  // 输入流开始读
+  reader.readAsArrayBuffer(file)
 }
 
+/**
+ * 关闭弹窗
+ */
 const closeDialog = () => {
+  // 更新子组件状态
   dialogVisible.value = false
+  // 通知父组件
   emits('close')
+  // 清空待上传列表
   upload.value!.clearFiles()
 }
 
@@ -81,7 +105,6 @@ watch(
   () => props.visible,
   (val) => {
     dialogVisible.value = val
-    // console.log('props.visible', props.visible, dialogVisible.value)
   },
 )
 </script>
