@@ -6,6 +6,16 @@
     center
     @close="closeDialog"
   >
+    <!--链接框-->
+    <div class="url-box">
+      <!--URL输入框-->
+      <el-input v-model.trim="dataUrl" class="url-input" placeholder="请输入在线数据URL并点击右侧按钮导入" clearable />
+      <!--导入按钮-->
+      <el-button class="url-button" type="primary" @click="onClickUrlDownload">
+        在线导入
+      </el-button>
+    </div>
+
     <!--上传框-->
     <el-upload
       ref="upload"
@@ -43,6 +53,18 @@ const dialogVisible = ref<boolean>(props.visible)
 // 上传框DOM
 const upload = ref()
 
+// URL
+const dataUrl = ref('')
+// 点击在线导入按钮
+const onClickUrlDownload = () => {
+  if (!dataUrl.value) {
+    return
+  }
+  console.log('点击在线导入按钮', dataUrl.value)
+  // 将URL的文件下载成Blob
+  readFileBuffer(new Blob())
+}
+
 /**
  * 覆盖文件
  * 比如重复上传
@@ -62,9 +84,14 @@ const handleExceed: UploadProps['onExceed'] = (files) => {
  * 比如首次上传、重新上传等
  */
 const handleChange = (uploadFile: UploadFile) => {
-  // File对象
-  const file = uploadFile.raw as Blob
+  // 读取文件流
+  readFileBuffer(uploadFile.raw as Blob)
+}
 
+/**
+ * 读取文件流
+ */
+const readFileBuffer = (file: Blob) => {
   // 初始化JS输入流
   const reader = new FileReader()
   // 输入流被加载的事件钩子函数
@@ -109,4 +136,16 @@ watch(
 </script>
 
 <style scoped lang="scss">
+.url-box {
+  display: flex;
+  margin-bottom: 20px;
+  .url-input {
+    flex: auto;
+  }
+  .url-button {
+    flex: none;
+    width: 100px;
+    margin-left: 20px;
+  }
+}
 </style>
