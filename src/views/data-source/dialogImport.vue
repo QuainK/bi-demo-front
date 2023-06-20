@@ -9,9 +9,9 @@
     <!--链接框-->
     <div class="url-box">
       <!--URL输入框-->
-      <el-input v-model.trim="dataUrl" class="url-input" placeholder="请输入在线数据URL并点击右侧按钮导入" clearable />
+      <el-input v-model.trim="dataUrl" disabled class="url-input" placeholder="请输入在线数据URL并点击右侧按钮导入" clearable />
       <!--导入按钮-->
-      <el-button class="url-button" type="primary" @click="onClickUrlDownload">
+      <el-button disabled class="url-button" type="primary" @click="onClickUrlDownload">
         在线导入
       </el-button>
     </div>
@@ -36,7 +36,7 @@
 import { genFileId, UploadFile, UploadProps, UploadRawFile } from 'element-plus'
 import * as x from 'xlsx'
 import { ref, watch } from 'vue'
-import axios from 'axios'
+import * as dayjs from 'dayjs'
 
 const props = defineProps<{
   visible: boolean,
@@ -100,12 +100,23 @@ const readFileBuffer = (file: Blob) => {
   reader.onload = (e) => {
     // 输入流缓冲
     const buffer = e.target!.result
-    // 读取xlsx文件
-    const workbook = x.read(buffer, { type: 'array' })
+    // 读取xlsx文件，注意日期格式
+    const workbook = x.read(buffer, { type: 'array', cellDates: true })
     // 获取表格文件名
     const sheetName = workbook.Sheets[workbook.SheetNames[0]]
     // 将该表格转换成JSON格式
-    const json = x.utils.sheet_to_json(sheetName)
+    let json = x.utils.sheet_to_json(sheetName)
+    // 封装日期时间格式
+    json = json.map((row) => {
+      Object.keys(row).forEach((prop) => {
+        // console.log('prop', prop)
+        if (row[prop] instanceof Date) {
+          row[prop] = dayjs(row[prop]).format('YYYY-MM-DD')
+        }
+      })
+      return row
+    })
+    // console.log('json', json)
     // 通知父组件，导入完成
     emits('change', json)
     // 读完了，关闭弹窗
