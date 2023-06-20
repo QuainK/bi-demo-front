@@ -122,13 +122,14 @@
       </div>
 
       <!--表格容器-->
-      <div class="table">
+      <div class="table-box">
         <!--表格组件-->
         <el-table
+          class="table"
           :data="currentPageList"
           stripe
           border
-          style="margin: 10px 0;"
+          max-height="600"
         >
           <el-table-column
             v-for="(columnProp,index) in columnPropList "
@@ -233,7 +234,6 @@ const updateCurrentPage = () => {
   const val = updateCurrentPageList(modifiedList.value, pageNum.value, pageSize.value)
   tableSize.value = modifiedList.value.length
   currentPageList.value = JSON.parse(JSON.stringify(val))
-  console.log('modifiedList.value', JSON.parse(JSON.stringify(modifiedList.value)), 'currentPageList.value', JSON.parse(JSON.stringify(currentPageList.value)))
 }
 /**
  * 修改当前页码
@@ -405,22 +405,6 @@ if (currentPageList.value.length) {
 </script>
 
 <style scoped lang="scss">
-// 模块容器
-.module {
-  display: flex;
-  flex-direction: row;
-  justify-content: flex-start;
-  flex-wrap: nowrap;
-  width: 100%;
-  height: auto;
-}
-// 主体
-.module-main {
-  flex: auto;
-  width: auto;
-  min-width: 300px;
-  height: 100%;
-}
 // 菜单栏
 .data-menu {
   display: flex;
@@ -447,8 +431,13 @@ if (currentPageList.value.length) {
     margin-right: 1em;
   }
 }
+// 表格组件
+.table {
+  margin: 10px 0;
+}
 // 分页条
 .pagination {
   justify-content: flex-end;
+  margin: 20px 0 40px;
 }
 </style>

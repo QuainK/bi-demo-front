@@ -36,6 +36,7 @@
 import { genFileId, UploadFile, UploadProps, UploadRawFile } from 'element-plus'
 import * as x from 'xlsx'
 import { ref, watch } from 'vue'
+import axios from 'axios'
 
 const props = defineProps<{
   visible: boolean,
@@ -62,7 +63,7 @@ const onClickUrlDownload = () => {
   }
   console.log('点击在线导入按钮', dataUrl.value)
   // 将URL的文件下载成Blob
-  readFileBuffer(new Blob())
+  // readFileBuffer(new Blob())
 }
 
 /**

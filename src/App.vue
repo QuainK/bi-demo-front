@@ -2,8 +2,9 @@
   <div class="container">
     <!--路由切换按钮-->
     <div style="margin-bottom: 10px">
-      <el-button @click="onButtonClick('/')">home</el-button>
-      <el-button @click="onButtonClick('/data-source')">data-source</el-button>
+      <el-button @click="onButtonClick('/')">首页</el-button>
+      <el-button @click="onButtonClick('/data-source')">数据源</el-button>
+      <el-button @click="onButtonClick('/component-manager')">组件管理</el-button>
     </div>
 
     <!--模块路由视图-->
